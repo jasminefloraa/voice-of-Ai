@@ -1,0 +1,31 @@
+# Python
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Build and temporary files
+build/
+dist/
+tmp/
+*.tmp
+*.wav
+*.mp3
+*.webm
+*.log
+
+# Test artifacts
+coverage/
+.pytest_cache/
+
+# Sensitive local data
+*.key
+*.pem
+backend/data/
