@@ -50,7 +50,9 @@ except ModuleNotFoundError:  # pragma: no cover - support backend-dir startup
     )
     from app.services import SarvamClient
 
+
 app = FastAPI(title=settings.APP_NAME)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -58,6 +60,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:4173",
         "http://127.0.0.1:4173",
+        "https://voice-of-ai-eight.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -67,27 +70,8 @@ app.add_middleware(
 init_db()
 
 
-class SessionCreateRequest(BaseModel):
-    agent: str
-    customer_name: str | None = None
-    objective: str | None = None
-
-
-class SessionUpdateRequest(BaseModel):
-    status: str | None = None
-    outcome: str | None = None
-    transcript: str | None = None
-    duration_seconds: int | None = None
-    error: str | None = None
-
-
-class TTSRequest(BaseModel):
-    text: str
-    language_code: str = "en-IN"
-    speaker: str = "kavya_hi_conversational"
-
-
 class AgentReplyRequest(BaseModel):
+
     agent: str
     latest_customer_message: str
     history: list[dict[str, str]] = Field(default_factory=list)
