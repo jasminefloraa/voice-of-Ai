@@ -31,6 +31,7 @@ try:
         init_db,
         update_last_login,
         update_session,
+        update_user_password,
     )
     from backend.app.services import SarvamClient
 except ModuleNotFoundError:  # pragma: no cover - support backend-dir startup
@@ -49,6 +50,7 @@ except ModuleNotFoundError:  # pragma: no cover - support backend-dir startup
         init_db,
         update_last_login,
         update_session,
+        update_user_password,
     )
     from app.services import SarvamClient
 
@@ -82,19 +84,30 @@ def initialize_admin() -> None:
         return
 
     existing_user = get_user_by_email(email)
+    password_hash = bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
     if existing_user is None:
-        password_hash = bcrypt.hashpw(
-            password.encode("utf-8"),
-            bcrypt.gensalt()
-        ).decode("utf-8")
-
         create_user(
             name="Admin User",
             email=email,
             password_hash=password_hash,
             role="admin",
         )
+        return
+
+    try:
+        password_matches = bcrypt.checkpw(
+            password.encode("utf-8"),
+            existing_user['password_hash'].encode("utf-8"),
+        )
+    except (ValueError, TypeError):
+        password_matches = False
+
+    if not password_matches:
+        update_user_password(existing_user['id'], password_hash)
 
 
 init_db()
@@ -759,12 +772,13 @@ def login(payload: LoginRequest, response: Response) -> dict:
     create_user_session(user['id'], session_token, expires_at)
     update_last_login(user['id'])
 
+    production_cookie = settings.ENVIRONMENT.lower() == 'production'
     response.set_cookie(
         key='creditnirvana_session',
         value=session_token,
         httponly=True,
-        samesite='lax',
-        secure=False,
+        samesite='none' if production_cookie else 'lax',
+        secure=production_cookie,
         path='/',
         max_age=60 * 60 * 24 * 7,
     )
@@ -785,7 +799,13 @@ def logout(request: Request, response: Response) -> dict:
     token = _get_session_token(request)
     if token:
         delete_user_session(token)
-    response.delete_cookie(key='creditnirvana_session', path='/')
+    production_cookie = settings.ENVIRONMENT.lower() == 'production'
+    response.delete_cookie(
+        key='creditnirvana_session',
+        path='/',
+        samesite='none' if production_cookie else 'lax',
+        secure=production_cookie,
+    )
     return {"status": "ok"}
 
 @app.post("/api/sessions")

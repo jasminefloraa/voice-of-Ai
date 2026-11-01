@@ -102,6 +102,14 @@ def update_last_login(user_id: int) -> None:
         )
 
 
+def update_user_password(user_id: int, password_hash: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (password_hash, user_id),
+        )
+
+
 def create_user_session(user_id: int, session_token: str, expires_at: str) -> None:
     with _connect() as conn:
         conn.execute(
