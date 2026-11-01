@@ -1,116 +1,107 @@
-<h1 align="center">Agentra AI – Voice Agent Studio</h1>
+<h1 align="center">Agentra AI – Voice Agent Studio
+Build. Speak. Automate.</h1>
+
+An intelligent conversational AI platform powered by **Sarvam AI**, designed to create and manage voice-based AI agents for real-world business workflows.
 
 <p align="center">
-  <strong>Build. Speak. Automate.</strong>
+  <img src="https://img.shields.io/badge/Status-Live-brightgreen?style=for-the-badge" alt="Live"/>
+  <img src="https://img.shields.io/badge/AI-Sarvam%20AI-red?style=for-the-badge" alt="Sarvam AI"/>
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Frontend-React-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
 </p>
 
 <p align="center">
-  An intelligent conversational AI platform powered by Sarvam AI.
-</p>
-
-<p align="center">
-  <a href="https://agentra-ai-rho.vercel.app/"><strong>Live Demo</strong></a> ·
+  <a href="https://agentra-ai-rho.vercel.app/"><strong>Live Demo</strong></a> •
   <a href="https://github.com/jasminefloraa/voice-of-Ai"><strong>GitHub Repository</strong></a>
 </p>
 
 ---
 
-## Overview
+## About the Project
 
-**Agentra AI** is an AI-powered Voice Agent Studio designed to build and interact with intelligent conversational voice agents.
+**Agentra AI** is a voice agent platform that enables users to interact with AI-powered conversational agents through speech.
 
-Powered by **Sarvam AI**, the platform enables natural voice-based interactions through speech recognition and AI-generated speech responses.
+The application integrates Sarvam AI for speech-related capabilities and provides specialized conversational workflows for business use cases.
 
-Instead of relying entirely on traditional text-based interfaces, Agentra AI provides a conversational experience where users can interact with specialized AI agents designed for practical business scenarios.
-
-The platform currently demonstrates two specialized voice-agent workflows:
-
-- Personal Loan Settlement Assistant
-- Vehicle Insurance Renewal Assistant
-
-## Live Application
-
-<details>
-<summary><strong>Deployment information</strong></summary>
-
-| Component | Deployment |
-|---|---|
-| Frontend | Vercel |
-| Backend | Render |
-| AI Voice Services | Sarvam AI |
-| Database | SQLite |
-
-**Live Website:** https://agentra-ai-rho.vercel.app/
-
-</details>
+Instead of relying only on traditional text-based interactions, Agentra AI aims to make conversations more natural through speech recognition, intelligent responses, and voice generation.
 
 ## Key Features
 
-### AI Voice Interaction
-- Speech-to-text processing.
-- AI-generated text-to-speech responses.
-- Natural conversational interaction.
-- Voice-based customer assistance.
+- **AI Voice Interaction** – Speech-based interaction with AI agents.
+- **Speech-to-Text** – Converts spoken input into text using Sarvam AI.
+- **Text-to-Speech** – Generates voice responses from text.
+- **Specialized Voice Agents** – Dedicated conversational workflows for different business scenarios.
+- **Dashboard** – Centralized interface to access and manage voice agent functionality.
+- **Authentication** – User authentication and protected application access.
+- **Backend API** – FastAPI-powered backend for application logic and AI integration.
 
-### Specialized Voice Agents
+## Voice Agent Use Cases
 
-**1. Personal Loan Settlement Agent**
+### 1. Personal Loan Settlement Agent
 
-An intelligent conversational assistant designed for loan-settlement discussions.
+A conversational agent designed to handle personal loan settlement discussions.
 
-Features:
-- Understands loan settlement scenarios.
-- Handles outstanding balance discussions.
-- Communicates settlement options.
-- Provides structured, conversational responses.
-- Supports responsible and professional customer interactions.
+- Explains outstanding loan amounts.
+- Communicates settlement offers.
+- Handles customer questions.
+- Maintains a professional and structured conversation flow.
 
-**2. Vehicle Insurance Renewal Agent**
+### 2. Vehicle Insurance Renewal Agent
 
-A conversational assistant designed for vehicle insurance renewal discussions.
+A conversational agent designed for vehicle insurance renewal discussions.
 
-Features:
-- Handles insurance renewal conversations.
-- Discusses vehicle IDV and premium details.
-- Explains insurance add-on options.
-- Supports premium comparisons.
-- Assists with renewal-related queries.
-
-### Application Features
-- Web-based dashboard.
-- Backend API integration.
-- Authentication and session management.
-- Dedicated voice-agent workflows.
-- Responsive user interface.
+- Explains insurance renewal options.
+- Discusses IDV and premium details.
+- Communicates policy benefits.
+- Handles customer questions about coverage and renewal.
 
 ## Technology Stack
 
-| Layer | Technologies |
-|---|---|
-| Frontend | React.js, TypeScript, Vite |
-| Backend | Python, FastAPI |
-| Database | SQLite |
-| AI Voice Services | Sarvam AI |
-| Speech Processing | Speech-to-Text (STT), Text-to-Speech (TTS) |
-| Deployment | Vercel, Render |
-| Version Control | Git, GitHub |
+### Frontend
+
+<p>
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"/>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
+</p>
+
+### Backend
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
+</p>
+
+### AI Integration
+
+<p>
+  <img src="https://img.shields.io/badge/Sarvam%20AI-Voice%20AI-D62828?style=for-the-badge" alt="Sarvam AI"/>
+</p>
+
+### Deployment and Tools
+
+<p>
+  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel"/>
+  <img src="https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black" alt="Render"/>
+  <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/>
+</p>
 
 ## System Architecture
 
 ```mermaid
 flowchart TD
-    A[User] --> B[Agentra AI Frontend]
-    B --> C[React / TypeScript]
-    C --> D[FastAPI Backend]
-    D --> E[Authentication]
-    D --> F[Voice Agent Logic]
-    F --> G[Sarvam AI]
-    G --> H[Speech Processing]
-    H --> I[AI Response]
-    I --> D
-    D --> C
-    C --> A
-    D --> J[(SQLite Database)]
+    A[User] --> B[React Frontend]
+    B --> C[FastAPI Backend]
+    C --> D[Authentication and API Logic]
+    C --> E[Sarvam AI Services]
+    E --> F[Speech Recognition]
+    E --> G[Voice Generation]
+    D --> H[(SQLite Database)]
+    F --> C
+    G --> C
+    C --> B
+    B --> I[Voice Agent Dashboard]
 ```
 
 ## Project Structure
@@ -134,46 +125,34 @@ voice-of-Ai/
 └── .gitignore
 ```
 
-*The structure above highlights the main application directories. Additional files and modules may exist in the repository.*
-
 ## Getting Started
 
-Follow these steps to run Agentra AI locally.
+Follow these instructions to run Agentra AI locally.
 
 ### Prerequisites
-
-Make sure you have installed:
 
 - Python 3.10+
 - Node.js and npm
 - Git
-- A Sarvam AI API key
+- Sarvam AI API key
 
 ### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/jasminefloraa/voice-of-Ai.git
-```
-
-```bash
 cd voice-of-Ai
 ```
 
-### 2. Backend Setup
-
-Navigate to the backend directory:
+### 2. Configure the Backend
 
 ```bash
 cd backend
-```
-
-Create a virtual environment:
-
-```bash
 python -m venv venv
 ```
 
-Activate it on Windows:
+Activate the virtual environment.
+
+**Windows:**
 
 ```bash
 venv\Scripts\activate
@@ -185,37 +164,28 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Configure your backend environment variables using the variable names expected by the application.
-
-Example:
+Create a `.env` file in the backend directory:
 
 ```env
 SARVAM_API_KEY=your_sarvam_api_key
 ```
 
-Start the FastAPI server:
+Run the backend:
 
 ```bash
 uvicorn app.main:app --reload --port 8001
 ```
 
-Backend API:
+Backend runs locally at:
 
-```text
-http://localhost:8001
-```
+`http://localhost:8001`
 
-### 3. Frontend Setup
+### 3. Configure the Frontend
 
-Open another terminal and navigate to the frontend directory:
+Open another terminal:
 
 ```bash
 cd frontend
-```
-
-Install dependencies:
-
-```bash
 npm install
 ```
 
@@ -225,85 +195,61 @@ Create a `.env` file in the frontend directory:
 VITE_API_BASE_URL=http://localhost:8001
 ```
 
-Start the development server:
+Start the frontend:
 
 ```bash
 npm run dev
 ```
 
-Open the local application using the URL displayed in your terminal.
+Open the local URL displayed by Vite in your browser.
 
-## Environment Configuration
+## Environment Variables
 
-| Variable | Purpose |
+| Variable | Description |
 |---|---|
-| `SARVAM_API_KEY` | Authenticates backend requests to Sarvam AI |
-| `VITE_API_BASE_URL` | Configures the frontend API endpoint |
+| `SARVAM_API_KEY` | Sarvam AI API authentication key. Keep this on the backend. |
+| `VITE_API_BASE_URL` | Backend API base URL used by the frontend. |
 
-**Security Notes:**
-- Never commit API keys or passwords to GitHub.
-- Keep private credentials in backend environment variables.
-- Configure production environment variables separately on Render and Vercel.
-- Use persistent storage for the production SQLite database.
+**Security:** Never commit API keys, passwords, or private environment files to GitHub.
 
 ## Deployment
 
-Agentra AI uses a separate frontend and backend deployment architecture.
+Agentra AI is deployed using separate frontend and backend hosting services.
 
-**Frontend – Vercel**
-- Framework: Vite
-- Root directory: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
+| Component | Platform |
+|---|---|
+| Frontend | Vercel |
+| Backend | Render |
+| AI Services | Sarvam AI |
+| Database | SQLite |
 
-**Backend – Render**
-- Runtime: Python
-- Root directory: `backend`
-- Build command: `pip install -r requirements.txt`
-- Start command:
+**Live Application:**  
+https://agentra-ai-rho.vercel.app/
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Configure the frontend API URL and backend CORS settings for the production domains.
-
-## Project Highlights
-
-- Full-stack AI application development.
-- Integration of Sarvam AI voice capabilities.
-- REST API development using FastAPI.
-- Frontend and backend integration.
-- Authentication and database management.
-- Cloud deployment using Vercel and Render.
-- Practical conversational AI use cases.
+**Backend:**  
+https://agentra-ai-backend.onrender.com
 
 ## Future Enhancements
 
-- Public user registration and account management.
-- Custom voice-agent creation.
+- Public user registration and individual workspaces.
+- More customizable voice agents.
 - Conversation history and analytics.
-- Multilingual conversational support.
-- Advanced agent configuration.
-- Improved workspace and user management.
-- Additional business-specific voice agents.
+- Additional business-specific conversational workflows.
+- Improved voice interaction and response handling.
 
-## Author
+## Developer
 
 **Jasmine Flora J**
 
 B.Tech – Computer Science and Engineering
 
-GitHub: [@jasminefloraa](https://github.com/jasminefloraa)
-
-LinkedIn: [Jasmine Flora](https://www.linkedin.com/in/jasmine-flora/)
+- GitHub: [@jasminefloraa](https://github.com/jasminefloraa)
+- LinkedIn: [jasmine-flora](https://www.linkedin.com/in/jasmine-flora/)
 
 ---
 
 <p align="center">
-  <strong>Agentra AI</strong>
+  <strong>Agentra AI – Build. Speak. Automate.</strong>
   <br/>
-  Build. Speak. Automate.
-  <br/>
-  <sub>Powered by Sarvam AI</sub>
+  Intelligent conversations, powered by AI.
 </p>
