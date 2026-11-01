@@ -10,7 +10,7 @@ load_dotenv(BASE_DIR / ".env")
 
 
 class Settings:
-    APP_NAME = "CreditNirvana Voice AI Studio"
+    APP_NAME = "Agentra AI - Voice Agent Studio"
     ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     PORT = int(os.getenv("PORT", "8000"))
     SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")

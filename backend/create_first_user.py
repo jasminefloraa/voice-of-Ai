@@ -14,7 +14,7 @@ else:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Create the first CreditNirvana admin user.')
+    parser = argparse.ArgumentParser(description='Create the first Agentra AI admin user.')
     parser.add_argument('--name', default='Admin User', help='Full name for the account.')
     parser.add_argument('--email', default='admin@creditnirvana.test', help='Email address for the user.')
     parser.add_argument('--password', required=True, help='Password for the first user account.')

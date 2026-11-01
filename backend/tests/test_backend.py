@@ -224,6 +224,46 @@ def test_personal_loan_amount_semantics_distinguish_mentions_from_payment_offers
     assert 'proposed payment' not in exact_reply.lower()
 
 
+def test_loan_acceptance_and_instalment_questions_are_not_generic():
+    client = TestClient(app)
+    questions = [
+        'Can ₹1 lakh be accepted as full settlement?',
+        'Is it possible to pay the ₹4 lakh settlement in instalments?',
+    ]
+
+    for question in questions:
+        response = client.post('/api/agent-response', json={
+            'agent': 'loan_settlement',
+            'latest_customer_message': question,
+            'history': [{'speaker': 'customer', 'text': question}],
+        })
+        assert response.status_code == 200
+        reply = response.json()['reply']
+        assert '₹6,50,000' in reply or '₹6.5 lakh' in reply
+        assert '₹4,00,000' in reply or '₹4 lakh' in reply
+        assert 'can accept' not in reply.lower()
+        assert 'approved' not in reply.lower()
+        assert 'latest message is about' not in reply.lower()
+
+
+def test_insurance_multi_part_question_answers_price_idv_and_addons():
+    client = TestClient(app)
+    response = client.post('/api/agent-response', json={
+        'agent': 'insurance_renewal',
+        'latest_customer_message': 'The current premium is ₹15,000 and another insurer quoted ₹11,000. The IDV dropped from ₹9 lakh to ₹8 lakh. Are zero depreciation and roadside assistance included, and should I choose the cheaper quote?',
+        'history': [],
+    })
+    assert response.status_code == 200
+    reply = response.json()['reply']
+    assert '₹4,000' in reply or '4,000' in reply
+    assert '₹9,00,000' in reply
+    assert '₹8,00,000' in reply
+    assert 'zero depreciation' in reply.lower()
+    assert 'roadside assistance' in reply.lower()
+    assert 'policy schedule' in reply.lower() or 'quote' in reply.lower()
+    assert 'cannot confirm' in reply.lower()
+
+
 def test_login_requires_valid_credentials_and_returns_current_user():
     import sqlite3
     from pathlib import Path
@@ -266,6 +306,53 @@ def test_login_requires_valid_credentials_and_returns_current_user():
     assert '₹20,000' in distinct_reply or '20,000' in distinct_reply
     assert '₹6,50,000' in distinct_reply or '₹4,00,000' in distinct_reply
     assert 'close the loan' in distinct_reply.lower() or 'accepted settlement' in distinct_reply.lower() or 'settlement' in distinct_reply.lower()
+
+
+def test_loan_settlement_intents_answer_directly_and_without_fabrication():
+    client = TestClient(app)
+    scenarios = [
+        ('Why are you calling me?', ('calling', 'loan account', 'discuss')),
+        ('I have had eight months of overdue EMIs.', ('previous emi', 'overdue', 'loan account')),
+        ('What is the outstanding balance?', ('₹6,50,000', '₹4,00,000')),
+        ('Can I offer ₹1 lakh as full settlement?', ('₹1,00,000', '₹4,00,000', 'approval')),
+        ('Can I pay ₹4 lakh in four monthly instalments of ₹1 lakh?', ('four monthly payments', '₹1,00,000', 'lender review')),
+        ('Why should I pay ₹4 lakh when I have already paid several EMIs?', ('previous emi', 'loan statement', '₹4,00,000')),
+        ('Please explain the principal, interest and charges breakdown.', ('₹4,00,000', '₹2,00,000', '₹50,000')),
+        ('I do not trust these calculations. Can you send me the detailed loan statement?', ('statement', 'official loan statement', 'cannot claim')),
+        ('I need additional time to arrange the payment.', ('more time', 'lender', 'cannot promise')),
+        ('Is settlement approval guaranteed?', ('cannot', 'guaranteed', 'formal lender review')),
+    ]
+
+    history = []
+    for question, required_phrases in scenarios:
+        history.append({'speaker': 'customer', 'text': question})
+        response = client.post('/api/agent-response', json={
+            'agent': 'loan_settlement',
+            'latest_customer_message': question,
+            'history': history.copy(),
+        })
+        assert response.status_code == 200
+        reply = response.json()['reply'].lower()
+        assert 'latest message is about' not in reply
+        for phrase in required_phrases:
+            assert phrase.lower() in reply, (question, phrase, reply)
+        assert 'scheduled' not in reply or 'must be formally approved' in reply
+
+
+def test_loan_intent_responses_do_not_reuse_previous_reply():
+    client = TestClient(app)
+    history = [
+        {'speaker': 'customer', 'text': 'Can I pay ₹4 lakh in four monthly instalments of ₹1 lakh?'},
+        {'speaker': 'agent', 'text': 'The proposed four monthly payments require lender review.'},
+    ]
+    response = client.post('/api/agent-response', json={
+        'agent': 'loan_settlement',
+        'latest_customer_message': 'Why should I pay ₹4 lakh when I have already paid several EMIs?',
+        'history': history,
+    })
+    reply = response.json()['reply'].lower()
+    assert 'previous emi payments' in reply
+    assert 'four monthly payments' not in reply
 
 
 def test_insurance_agent_responds_to_latest_question_in_same_coverage_price_objection():

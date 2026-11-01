@@ -1,6 +1,6 @@
-# React + TypeScript + Vite
+# Agentra AI – Voice Agent Studio Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React and TypeScript frontend for Agentra AI, an intelligent conversational automation platform powered by Sarvam AI. Build. Speak. Automate.
 
 Currently, two official plugins are available:
 

@@ -1,14 +1,30 @@
-# CreditNirvana Voice AI Studio
+# Agentra AI – Voice Agent Studio
 
-A premium fintech voice AI demo platform for a personal loan settlement agent and a car insurance renewal agent.
+## Build. Speak. Automate.
+
+An intelligent conversational AI platform powered by Sarvam AI, supporting personal loan settlement and car insurance renewal voice agents.
+
+Agentra AI is an AI voice agent and conversational automation platform designed for clear, practical customer conversations.
+
+## Product category
+AI Voice Agent & Conversational Automation Platform
 
 ## Features
 - Dark financial-services dashboard
-- Two voice agents with separate conversation logic
+- Personal Loan Settlement Voice Agent
+- Car Insurance Renewal Voice Agent
 - Live call studio with transcript and typed fallback
+- Microphone capture and browser audio playback
+- Sarvam AI speech-to-text and text-to-speech
 - SQLite-backed session storage and analytics
-- Demo mode that stays usable without Sarvam credentials
+- Demo mode that remains usable without Sarvam credentials
 - Secure Sarvam environment variable setup
+
+## Technology stack
+- Frontend: React, TypeScript, Vite
+- Backend: Python, FastAPI, Uvicorn
+- Storage: SQLite
+- Voice services: Sarvam AI STT and TTS
 
 ## Local setup
 
@@ -63,14 +79,15 @@ Open the frontend URL shown by Vite, typically:
 4. Restart the backend after changing the value
 5. Use a compatible Bulbul speaker such as `kavya_hi_conversational` or `aayan_hi_conversational`; `anushka` and `manisha` are not valid for `bulbul:v4-flash`
 
+## API documentation
+
+With the backend running, open:
+- Swagger UI: http://localhost:8001/docs
+- OpenAPI schema: http://localhost:8001/openapi.json
+
 ## Start both together
 
-```powershell
-cd "C:\Users\jasmi\OneDrive\Desktop\voice"
-.
-```
-
-A simple PowerShell startup script is included alongside the project for convenience.
+Start the backend and frontend in separate terminals using the commands above. The frontend uses `http://localhost:5173/` and the backend uses `http://localhost:8001` by default.
 
 ## Notes
 - Demo mode works without live credentials.

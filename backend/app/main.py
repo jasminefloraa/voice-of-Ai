@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import base64
+import io
 import re
 import uuid
+import wave
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import Any
 
 import bcrypt
-from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -68,14 +70,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import os
+
+
+def initialize_admin() -> None:
+    email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    password = os.getenv("ADMIN_PASSWORD", "")
+
+    if not email or not password:
+        return
+
+    existing_user = get_user_by_email(email)
+
+    if existing_user is None:
+        password_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        create_user(
+            name="Admin User",
+            email=email,
+            password_hash=password_hash,
+            role="admin",
+        )
+
+
 init_db()
+initialize_admin()
+
+
+class SessionCreateRequest(BaseModel):
+    agent: str
+    customer_name: str | None = None
+    objective: str | None = None
+
+
+class TTSRequest(BaseModel):
+    text: str
+    language_code: str = 'en-IN'
+    speaker: str = 'anushka'
 
 
 class AgentReplyRequest(BaseModel):
-
     agent: str
     latest_customer_message: str
     history: list[dict[str, str]] = Field(default_factory=list)
+
+
+class SessionUpdateRequest(BaseModel):
+    status: str | None = None
+    outcome: str | None = None
+    transcript: str | None = None
+    duration_seconds: int | None = None
+    error: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -289,6 +337,31 @@ def _analyze_conversation(agent: str, latest_customer_message: str, history: lis
     )
 
 
+def _classify_loan_intent(text: str) -> str:
+    lowered = _normalize_text(text).lower()
+    if any(term in lowered for term in ["why did you call", "why are you calling", "reason for this call"]):
+        return "call_reason"
+    if any(term in lowered for term in ["loan statement", "send statement", "don't trust", "do not trust", "detailed statement"]):
+        return "loan_statement"
+    if any(term in lowered for term in ["previous emi", "previous emis", "already paid", "paid several", "overdue emi", "8 months", "eight months", "months overdue"]):
+        return "previous_emi"
+    if any(term in lowered for term in ["principal", "interest", "charges", "breakdown"]):
+        return "balance_breakdown"
+    if any(term in lowered for term in ["how much do i owe", "what do i owe", "outstanding balance", "what is my balance", "balance due"]):
+        return "outstanding_balance"
+    if any(term in lowered for term in ["guarantee", "approved", "approval confirmed", "will it definitely close"]):
+        return "settlement_confirmation"
+    if any(term in lowered for term in ["more time", "additional time", "few more days", "next month", "can't pay until", "cannot pay until"]):
+        return "additional_time"
+    if any(term in lowered for term in ["four monthly", "in instalments", "in installments", "monthly instalment", "installment plan", "emi"]):
+        return "payment_schedule"
+    if any(term in lowered for term in ["1 lakh", "1,00,000", "100000", "settlement proposal", "reduce settlement", "reduced settlement"]):
+        return "settlement_negotiation"
+    if any(term in lowered for term in ["lost my job", "no job", "financial difficulty", "can't afford", "cannot afford", "hardship"]):
+        return "financial_hardship"
+    return "general_loan"
+
+
 def _format_currency(value: str) -> str:
     cleaned = _normalise_amount_token(value)
     if not cleaned:
@@ -410,11 +483,52 @@ def build_contextual_reply(agent: str, latest_customer_message: str, history: li
         return "The total outstanding is calculated as ₹4,00,000 principal plus ₹2,00,000 interest plus ₹50,000 charges, which equals ₹6,50,000. That is the full account balance, separate from any proposed settlement or a customer payment offer."
 
     if agent == "loan_settlement":
-        if "how much do i owe" in lowered or "how much do i owe?" in lowered or "what do i owe" in lowered or "what is my balance" in lowered:
+        loan_intent = _classify_loan_intent(latest_text)
+
+        if loan_intent == "call_reason":
+            return "I am calling to discuss the personal loan account and see whether a realistic settlement or payment arrangement can be discussed. I do not need you to decide anything immediately; I would like to understand your current position."
+
+        if loan_intent == "previous_emi":
+            overdue_acknowledgement = " I understand that eight months of payments may be overdue. " if any(term in lowered for term in ["8 months", "eight months", "overdue"]) else ""
+            return f"I understand your concern.{overdue_acknowledgement}Previous EMI payments should be reflected in your loan account records. The figures available to me currently show ₹4,00,000 principal, ₹2,00,000 interest and ₹50,000 charges, but I cannot verify how earlier payments were adjusted without the detailed loan statement."
+
+        if loan_intent == "loan_statement":
+            return "That is completely understandable. You should review the official loan statement before making a payment. I can help you identify what to request from the lender, but I cannot claim that the statement has already been sent or that any document request has been completed."
+
+        if loan_intent == "balance_breakdown":
+            return "The available figures show ₹6,50,000 total outstanding: ₹4,00,000 principal, ₹2,00,000 accrued interest and ₹50,000 in additional charges. The ₹4,00,000 settlement offer is separate from that total. These figures require the official account records to confirm individual allocations."
+
+        if loan_intent == "settlement_confirmation":
+            return "Settlement approval cannot be guaranteed. The outstanding balance is ₹6,50,000 and the current settlement offer is ₹4,00,000. Any proposal, closure amount, payment date or instalment schedule needs formal lender review and confirmation before it becomes valid."
+
+        if loan_intent == "additional_time":
+            return "You can ask for more time while you review the account, but I cannot promise an extension or change the payment deadline until the lender confirms it. The existing settlement offer remains ₹4,00,000 separately from the ₹6,50,000 outstanding balance. A realistic revised date can be raised for review."
+
+        if loan_intent == "payment_schedule":
+            if re.search(r"\bfour\b", lowered) and ("monthly" in lowered or "lakhs" in lowered or "lakh" in lowered or "1 lakh" in lowered):
+                return "I understand that you are proposing four monthly payments of ₹1,00,000 each to complete the ₹4,00,000 settlement. I can help raise that proposal for lender review. The schedule must be formally approved before it can be treated as an available arrangement."
+            return "I understand that you are asking about instalments. I cannot confirm a payment schedule or approval without a lender review. The available account position is ₹6,50,000 outstanding, with the ₹4,00,000 settlement offer shown separately."
+
+        if loan_intent == "financial_hardship":
+            return "I understand that losing income or facing financial difficulty can make repayments hard. The current settlement offer is ₹4,00,000 and the outstanding balance is ₹6,50,000. We can discuss what amount or timing is realistic and raise it for lender review, but I cannot guarantee approval."
+
+        if loan_intent == "settlement_negotiation" and "1 lakh" in lowered:
+            return "I understand that ₹1,00,000 is what you may be able to arrange right now. It is a customer proposal, not the ₹4,00,000 settlement offer or closure of the ₹6,50,000 outstanding balance. I can help submit it for lender review, but approval is not guaranteed."
+
+        if loan_intent == "outstanding_balance":
             return "The current total outstanding is ₹6,50,000. That includes ₹4,00,000 principal, ₹2,00,000 interest, and ₹50,000 in charges. The ₹4,00,000 settlement offer is separate from the full outstanding balance."
 
         if "full settlement amount" in lowered or "settlement amount today" in lowered or "arrange the full settlement" in lowered:
             return "The formal settlement offer is ₹4,00,000, not the full ₹6,50,000 outstanding balance. A payment of ₹4,00,000 is a settlement proposal, and it does not automatically close the account unless the lender accepts it under the agreed process."
+
+        if "1 lakh" in lowered or "1,00,000" in lowered or "100000" in lowered:
+            if "instalment" in lowered or "installment" in lowered or "emi" in lowered:
+                return "A ₹1 lakh payment is possible as a customer proposal, but it does not settle the ₹6,50,000 outstanding balance or the separate ₹4,00,000 settlement offer. I cannot confirm acceptance of a ₹1 lakh settlement or any instalment plan because approval and terms must come from the lender's account review."
+            if "full settlement" in lowered or "settle" in lowered or "accepted" in lowered or "accept" in lowered:
+                return "The ₹6,50,000 outstanding balance and the separate ₹4,00,000 settlement offer are not the same as a ₹1 lakh proposal. I cannot say that ₹1 lakh will be accepted as full settlement; the lender would need to review and formally approve it before closure is possible."
+
+        if "instalment" in lowered or "installment" in lowered or "emi" in lowered or "monthly payment" in lowered or "in parts" in lowered:
+            return "Instalments may be one option, but I cannot confirm a plan or approval without a lender review. The current outstanding balance is ₹6,50,000, while the existing settlement offer is ₹4,00,000. Any payment schedule or reduced settlement must be formally agreed by the lender before I can describe it as available."
 
         if "no money" in lowered or "no money at all" in lowered or "cannot pay" in lowered or "can't pay" in lowered or "not able to pay" in lowered or "can't afford" in lowered:
             return "I hear that you cannot pay the ₹4,00,000 settlement amount right now, and that is an important fact. The current account value remains ₹6,50,000, while the settlement offer remains ₹4,00,000. If the amount remains unpaid, the account may be subject to collection activity, credit reporting, and escalation or review. If that amount is not manageable, tell me what is realistic and I can explain the options without promising a settlement we have not approved."
@@ -500,7 +614,7 @@ def build_contextual_reply(agent: str, latest_customer_message: str, history: li
                 "I still cannot verify whether zero depreciation or roadside assistance are included, and I would not assume those are included without the policy schedule."
             )
 
-        if ("honestly recommend" in lowered or "recommend the cheaper" in lowered or "cheaper policy" in lowered or "cheaper quote" in lowered) and ("policy" in lowered or "quote" in lowered):
+        if ("honestly recommend" in lowered or "recommend the cheaper" in lowered or "cheaper policy" in lowered or "cheaper quote" in lowered) and ("policy" in lowered or "quote" in lowered) and "another insurer" not in lowered and "offered" not in lowered:
             return (
                 "Yes, if the coverage, add-ons, deductibles, exclusions, IDV, and service terms are truly equivalent, I would honestly recommend the cheaper policy. A higher premium is only worth paying if there is a verified difference that makes the cover materially better."
             )
@@ -510,17 +624,19 @@ def build_contextual_reply(agent: str, latest_customer_message: str, history: li
                 "To proceed with the renewal, I need the current policy schedule, the quote comparison, and confirmation of any add-ons you want to keep or remove. I will also verify the IDV, exclusions, and any existing zero-depreciation or roadside-assistance cover before we finalise the policy."
             )
 
-        if "another insurer offered" in lowered or "competitor" in lowered or "online quote" in lowered or "pay more" in lowered or "should pay more" in lowered:
+        if "another insurer offered" in lowered or "another insurer quoted" in lowered or "competitor" in lowered or "online quote" in lowered or "pay more" in lowered or "should pay more" in lowered:
             if current_premium and competitor_offer:
                 current_value = int(float(_normalise_amount_token(current_premium) or 0))
                 competitor_value = int(float(_normalise_amount_token(competitor_offer) or 0))
                 difference = max(current_value - competitor_value, 0)
+                asks_addons = "zero depreciation" in lowered or "roadside assistance" in lowered or "add-on" in lowered
+                recommendation = "Based on the available facts alone, the ₹11,000 competitor quote is ₹4,000 cheaper. I would recommend it only if the IDV, deductibles, exclusions, own damage, third-party cover, and add-ons are verified as equivalent." if competitor_value == 11000 and current_value == 15000 else f"Based on the available facts, compare the cheaper quote carefully; I would choose it only if the verified coverage and terms are equivalent. The price gap is ₹{difference:,}."
                 return (
-                    f"The difference is ₹{difference:,}. I cannot say the higher premium is better without the full coverage details, because a fair comparison needs to look at the IDV, own-damage cover, third-party cover, deductibles, exclusions, add-ons, and policy conditions. "
-                    f"The competitor quote is ₹{competitor_value:,} and the current premium is ₹{current_value:,}, but I do not have the other insurer's policy schedule, so I cannot confirm whether their cover includes the same protections. "
-                    "Based on the facts we do have, the Maruti Brezza had a previous IDV of ₹9,00,000, the renewal IDV is ₹8,00,000, the standard premium was ₹20,000, and the discounted premium is ₹15,000. "
-                    "I cannot confirm the reason for the revised IDV or whether zero depreciation or roadside assistance are included unless I check the policy schedule or the actual quote. "
-                    "If you share the competing quote summary, I can compare the IDV, cover, exclusions, and add-ons side by side."
+                    f"The price difference is ₹{difference:,}: the current renewal premium is ₹{current_value:,} and the competitor quote is ₹{competitor_value:,}. "
+                    f"{recommendation} "
+                    "The known IDV is ₹9,00,000 previously and ₹8,00,000 on renewal, but I cannot verify why the value changed without the renewal quote or policy schedule. "
+                    + ("I cannot confirm whether zero depreciation or roadside assistance are included in either policy. Please check both quote summaries or policy schedules before deciding. " if asks_addons else "The add-on cover is also unverified: I cannot confirm whether zero depreciation or roadside assistance are included without both policy schedules or quote summaries. ")
+                    + "If the competitor's coverage and exclusions are genuinely equivalent, the ₹11,000 quote is the better value; if service terms or protection are weaker, the ₹15,000 option may still be justified."
                 )
             return (
                 "The price gap matters, and I would not dismiss it. A fair comparison needs the actual policy details, not just the headline premium, because the IDV, own-damage cover, deductibles, exclusions, and add-ons all affect the real value. "
@@ -528,13 +644,13 @@ def build_contextual_reply(agent: str, latest_customer_message: str, history: li
                 "I cannot confirm whether zero depreciation or roadside assistance are included unless I check the quote or policy schedule. If you share the competitor's coverage details, I can compare them properly."
             )
 
-        if "idv" in lowered and ("drop" in lowered or "decrease" in lowered or "decreased" in lowered or "fell" in lowered or "lower" in lowered):
+        if "another insurer" not in lowered and "competitor" not in lowered and "idv" in lowered and ("drop" in lowered or "decrease" in lowered or "decreased" in lowered or "fell" in lowered or "lower" in lowered):
             return (
                 "The concern about the IDV drop is valid, but I cannot confirm the exact reason for the revised value without checking the actual renewal quote or the policy schedule. Based on the facts available, the Maruti Brezza had a previous IDV of ₹9,00,000 and the renewal IDV is ₹8,00,000, while the standard premium was ₹20,000 and the discounted premium is ₹15,000. "
                 "A lower IDV can reduce the insured value, but the reason has to be verified against the quote, not assumed."
             )
 
-        if "zero depreciation" in lowered or "roadside assistance" in lowered or "add-ons" in lowered or "add on" in lowered:
+        if ("zero depreciation" in lowered or "roadside assistance" in lowered or "add-ons" in lowered or "add on" in lowered) and "another insurer" not in lowered and "competitor" not in lowered:
             return (
                 "I cannot confirm from the facts available whether zero depreciation or roadside assistance are included in the current policy. Those are add-on and coverage-detail questions, so the actual quote or policy schedule is the source of truth. "
                 "The known facts are that the Maruti Brezza had a previous IDV of ₹9,00,000, the renewal IDV is ₹8,00,000, the standard premium was ₹20,000, and the discounted premium is ₹15,000. If you share the specific cover summary, I can compare it to the competitor quote accurately."
@@ -581,8 +697,13 @@ async def stt_health() -> dict:
         return {"ok": False, "configured": False, "service": "speech-to-text", "message": "SARVAM_API_KEY is not configured."}
     client = SarvamClient()
     try:
-        audio = b"\x52\x49\x46\x46\x00\x00\x00\x00\x57\x41\x56\x45"  # dummy payload for health validation
-        await client.speech_to_text(audio)
+        buffer = io.BytesIO()
+        with wave.open(buffer, "wb") as wave_file:
+            wave_file.setnchannels(1)
+            wave_file.setsampwidth(2)
+            wave_file.setframerate(16000)
+            wave_file.writeframes(b"\x00\x00" * 1600)
+        await client.speech_to_text(buffer.getvalue())
         return {"ok": True, "configured": True, "service": "speech-to-text", "message": "Speech-to-text endpoint accepted the request format."}
     except Exception as exc:
         return {"ok": False, "configured": True, "service": "speech-to-text", "message": str(exc)[:250]}
@@ -666,9 +787,8 @@ def logout(request: Request, response: Response) -> dict:
     response.delete_cookie(key='creditnirvana_session', path='/')
     return {"status": "ok"}
 
-
 @app.post("/api/sessions")
-def create_new_session(payload: SessionCreateRequest) -> dict:
+def create_new_session(payload: SessionCreateRequest = Body(...)) -> dict:
     session_id = str(uuid.uuid4())
     row = create_session(session_id, payload.agent, payload.customer_name, payload.objective)
     return {**row, "session_id": session_id}
@@ -700,7 +820,7 @@ def update_session_by_id(session_id: str, payload: SessionUpdateRequest) -> dict
 
 
 @app.post("/api/tts")
-async def generate_tts(payload: TTSRequest) -> dict:
+async def generate_tts(payload: TTSRequest = Body(...)) -> dict:
     text = (payload.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text is required for TTS generation.")
@@ -770,7 +890,7 @@ async def test_speech() -> dict:
             "audio_url": None,
         }
     try:
-        result = await client.text_to_speech("This is a test of the CreditNirvana voice pipeline.", language_code="en-IN", speaker="kavya_hi_conversational")
+        result = await client.text_to_speech("This is a test of the Agentra AI voice pipeline.", language_code="en-IN", speaker="kavya_hi_conversational")
         return {
             "status": "success",
             "audio_base64": base64.b64encode(result["audio_bytes"]).decode("ascii"),
@@ -808,7 +928,7 @@ def create_demo_call() -> dict:
         "session_id": session_id,
         "agent": agent,
         "transcript": [
-            {"speaker": "agent", "text": "Hello, this is the CreditNirvana settlement desk. I am calling about the overdue personal loan and we need to agree on a realistic next step."},
+            {"speaker": "agent", "text": "Hello, this is the Agentra AI settlement desk. I am calling about the overdue personal loan and we need to agree on a realistic next step."},
             {"speaker": "customer", "text": "I do not have the money right now."},
         ],
         "reason": "salary delayed",

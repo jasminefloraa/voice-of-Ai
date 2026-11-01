@@ -600,10 +600,10 @@ function App() {
     <section className="overview-grid">
       <div className="hero-panel panel">
         <div className="hero-copy">
-          <span className="eyebrow">Voice AI Studio</span>
-          <h1>Warm, clear conversations that move customers forward.</h1>
+          <span className="eyebrow">Agentra Voice Studio</span>
+          <h1>Build. Speak. Automate.</h1>
           <p>
-            CreditNirvana helps teams handle difficult payment and renewal conversations with a steady hand, practical guidance, and a human tone.
+            An intelligent conversational AI platform powered by Sarvam AI. Personal loan settlement and insurance renewal conversations, built for clarity and practical action.
           </p>
         </div>
         <div className="hero-actions">
@@ -736,7 +736,9 @@ function App() {
             <h2>{agentMeta[selectedAgent].name}</h2>
           </div>
           <div className="status-row">
-            <span className={`indicator ${callState}`}>{callState}</span>
+            <span className={`indicator ${callState}`}>
+              {callState === 'idle' ? 'Ready' : callState === 'listening' ? 'Listening' : callState === 'processing' ? 'Processing' : callState === 'speaking' ? 'Agent speaking' : 'Needs attention'}
+            </span>
             <button type="button" className="secondary" onClick={() => startFreshConversation()}>
               New conversation
             </button>
@@ -1028,9 +1030,9 @@ function App() {
       <div className="login-screen">
         <div className="login-card">
           <div className="brand-block login-brand">
-            <div className="brand-mark">C</div>
+            <div className="brand-mark">A</div>
             <div>
-              <strong>CreditNirvana</strong>
+              <strong>Agentra AI</strong>
             </div>
           </div>
 
@@ -1052,7 +1054,7 @@ function App() {
                 setLoginErrors((current) => ({ ...current, email: undefined }))
                 setLoginError('')
               }}
-              placeholder="you@creditnirvana.com"
+              placeholder="you@agentra.ai"
               aria-invalid={Boolean(loginErrors.email)}
             />
             {loginErrors.email ? <span className="field-error">{loginErrors.email}</span> : null}
@@ -1095,10 +1097,10 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-mark">C</div>
+          <div className="brand-mark">A</div>
           <div>
-            <strong>CreditNirvana</strong>
-            <small>Voice AI Studio</small>
+            <strong>Agentra AI</strong>
+            <small>Voice Agent Studio</small>
           </div>
         </div>
 

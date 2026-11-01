@@ -1,1 +1,1 @@
-"""Backend package for CreditNirvana Voice AI Studio."""
+"""Backend package for Agentra AI - Voice Agent Studio."""
