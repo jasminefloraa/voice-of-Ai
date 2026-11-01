@@ -145,6 +145,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegistrationRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    confirm_password: str
+
+
 def _serialize_user(user: dict[str, Any] | None) -> dict[str, Any] | None:
     if user is None:
         return None
@@ -760,6 +767,34 @@ def get_config() -> dict:
     }
 
 
+@app.post("/api/register")
+def register(payload: RegistrationRequest, response: Response) -> dict:
+    name = payload.name.strip()
+    email = payload.email.strip().lower()
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Full name must be at least 2 characters.")
+    if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email) is None:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match.")
+    if get_user_by_email(email) is not None:
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+
+    password_hash = bcrypt.hashpw(payload.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    user = create_user(name, email, password_hash, role="user")
+    if not user:
+        raise HTTPException(status_code=500, detail="Unable to create account.")
+
+    session_token = uuid.uuid4().hex
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    create_user_session(user['id'], session_token, expires_at)
+    update_last_login(user['id'])
+    _set_session_cookie(response, session_token)
+    return {"status": "ok", "user": _serialize_user(user)}
+
+
 @app.post("/api/login")
 def login(payload: LoginRequest, response: Response) -> dict:
     normalized_email = payload.email.strip().lower()
@@ -772,6 +807,11 @@ def login(payload: LoginRequest, response: Response) -> dict:
     create_user_session(user['id'], session_token, expires_at)
     update_last_login(user['id'])
 
+    _set_session_cookie(response, session_token)
+    return {"status": "ok", "user": _serialize_user(user)}
+
+
+def _set_session_cookie(response: Response, session_token: str) -> None:
     production_cookie = settings.ENVIRONMENT.lower() == 'production'
     response.set_cookie(
         key='creditnirvana_session',
@@ -782,8 +822,6 @@ def login(payload: LoginRequest, response: Response) -> dict:
         path='/',
         max_age=60 * 60 * 24 * 7,
     )
-
-    return {"status": "ok", "user": _serialize_user(user)}
 
 
 @app.get("/api/me")
@@ -809,24 +847,44 @@ def logout(request: Request, response: Response) -> dict:
     return {"status": "ok"}
 
 @app.post("/api/sessions")
-def create_new_session(payload: SessionCreateRequest = Body(...)) -> dict:
+def create_new_session(request: Request, payload: SessionCreateRequest = Body(...)) -> dict:
+    user = _get_authenticated_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     session_id = str(uuid.uuid4())
-    row = create_session(session_id, payload.agent, payload.customer_name, payload.objective)
+    row = create_session(
+        session_id,
+        payload.agent,
+        payload.customer_name,
+        payload.objective,
+        user_id=user['id'],
+    )
     return {**row, "session_id": session_id}
 
 
 @app.get("/api/sessions")
-def list_sessions() -> dict:
-    return {"sessions": fetch_sessions()}
+def list_sessions(request: Request) -> dict:
+    user = _get_authenticated_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"sessions": fetch_sessions(user_id=user['id'])}
 
 
 @app.get("/api/analytics")
-def analytics() -> dict:
-    return fetch_analytics()
+def analytics(request: Request) -> dict:
+    user = _get_authenticated_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return fetch_analytics(user_id=user['id'])
 
 
 @app.patch("/api/sessions/{session_id}")
-def update_session_by_id(session_id: str, payload: SessionUpdateRequest) -> dict:
+def update_session_by_id(request: Request, session_id: str, payload: SessionUpdateRequest) -> dict:
+    user = _get_authenticated_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if fetch_session(session_id, user['id']) is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     result = update_session(
         session_id,
         status=payload.status,
@@ -834,6 +892,7 @@ def update_session_by_id(session_id: str, payload: SessionUpdateRequest) -> dict
         transcript=payload.transcript,
         error=payload.error,
         duration_seconds=payload.duration_seconds,
+        user_id=user['id'],
     )
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")

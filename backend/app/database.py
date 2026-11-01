@@ -46,6 +46,7 @@ def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NULL,
                 session_id TEXT UNIQUE NOT NULL,
                 agent TEXT NOT NULL,
                 customer_name TEXT,
@@ -60,6 +61,10 @@ def init_db() -> None:
             )
             """
         )
+        try:
+            conn.execute("ALTER TABLE sessions ADD COLUMN user_id INTEGER NULL")
+        except sqlite3.OperationalError:
+            pass
 
 
 def create_user(name: str, email: str, password_hash: str, role: str = 'user') -> dict[str, Any]:
@@ -141,11 +146,11 @@ def delete_user_session(session_token: str) -> None:
         )
 
 
-def create_session(session_id: str, agent: str, customer_name: str | None = None, objective: str | None = None) -> dict[str, Any]:
+def create_session(session_id: str, agent: str, customer_name: str | None = None, objective: str | None = None, user_id: int | None = None) -> dict[str, Any]:
     with _connect() as conn:
         conn.execute(
-            "INSERT INTO sessions (session_id, agent, customer_name, objective, transcript) VALUES (?, ?, ?, ?, ?)",
-            (session_id, agent, customer_name, objective, "[]"),
+            "INSERT INTO sessions (user_id, session_id, agent, customer_name, objective, transcript) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, session_id, agent, customer_name, objective, "[]"),
         )
         row = conn.execute(
             "SELECT * FROM sessions WHERE session_id = ?",
@@ -154,15 +159,22 @@ def create_session(session_id: str, agent: str, customer_name: str | None = None
     return dict(row) if row is not None else {}
 
 
-def fetch_sessions() -> list[dict[str, Any]]:
+def fetch_sessions(user_id: int | None = None) -> list[dict[str, Any]]:
     with _connect() as conn:
-        rows = conn.execute(
-            "SELECT * FROM sessions ORDER BY created_at DESC"
-        ).fetchall()
+        if user_id is None:
+            rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM sessions WHERE user_id = ? ORDER BY created_at DESC", (user_id,)).fetchall()
     return [dict(row) for row in rows]
 
 
-def update_session(session_id: str, *, status: str | None = None, outcome: str | None = None, transcript: str | None = None, error: str | None = None, duration_seconds: int | None = None) -> dict[str, Any]:
+def fetch_session(session_id: str, user_id: int) -> dict[str, Any] | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM sessions WHERE session_id = ? AND user_id = ?", (session_id, user_id)).fetchone()
+    return dict(row) if row is not None else None
+
+
+def update_session(session_id: str, *, status: str | None = None, outcome: str | None = None, transcript: str | None = None, error: str | None = None, duration_seconds: int | None = None, user_id: int | None = None) -> dict[str, Any]:
     fields: list[str] = []
     values: list[Any] = []
     if status is not None:
@@ -184,19 +196,17 @@ def update_session(session_id: str, *, status: str | None = None, outcome: str |
         return {}
     values.append(session_id)
     with _connect() as conn:
-        conn.execute(
-            f"UPDATE sessions SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?",
-            values,
-        )
-        row = conn.execute(
-            "SELECT * FROM sessions WHERE session_id = ?",
-            (session_id,),
-        ).fetchone()
+        if user_id is None:
+            conn.execute(f"UPDATE sessions SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", values)
+            row = conn.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+        else:
+            conn.execute(f"UPDATE sessions SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND user_id = ?", values + [user_id])
+            row = conn.execute("SELECT * FROM sessions WHERE session_id = ? AND user_id = ?", (session_id, user_id)).fetchone()
     return dict(row) if row is not None else {}
 
 
-def fetch_analytics() -> dict[str, Any]:
-    sessions = fetch_sessions()
+def fetch_analytics(user_id: int | None = None) -> dict[str, Any]:
+    sessions = fetch_sessions(user_id=user_id)
     total_calls = len(sessions)
     completed_calls = sum(1 for s in sessions if s.get("status") == "completed")
     successful = sum(1 for s in sessions if s.get("outcome") in {"converted", "success", "renewed"})

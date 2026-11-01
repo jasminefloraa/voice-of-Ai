@@ -3,6 +3,28 @@ from fastapi.testclient import TestClient
 from backend.app.main import app
 
 
+def authenticated_client(email='workspace@agentra.test'):
+    import sqlite3
+    from pathlib import Path
+    import bcrypt
+
+    db_path = Path(__file__).resolve().parents[1] / 'data' / 'creditnirvana.db'
+    conn = sqlite3.connect(db_path)
+    conn.execute('DELETE FROM users WHERE email = ?', (email,))
+    password_hash = bcrypt.hashpw(b'CorrectPass!123', bcrypt.gensalt()).decode('utf-8')
+    conn.execute(
+        'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        ('Workspace User', email, password_hash, 'user'),
+    )
+    conn.commit()
+    conn.close()
+
+    client = TestClient(app)
+    response = client.post('/api/login', json={'email': email, 'password': 'CorrectPass!123'})
+    assert response.status_code == 200
+    return client
+
+
 def test_health_endpoint():
     client = TestClient(app)
     response = client.get('/api/health')
@@ -22,7 +44,7 @@ def test_config_includes_demo_mode_and_sarvam_status():
 
 
 def test_session_creation_and_persistence():
-    client = TestClient(app)
+    client = authenticated_client('sessions@agentra.test')
     payload = {
         'agent': 'loan_settlement',
         'customer_name': 'Demo Customer',
@@ -41,7 +63,7 @@ def test_session_creation_and_persistence():
 
 
 def test_analytics_metrics_use_real_session_data():
-    client = TestClient(app)
+    client = authenticated_client('analytics@agentra.test')
     response = client.get('/api/analytics')
     assert response.status_code == 200
     metrics = response.json()['metrics']
@@ -262,6 +284,36 @@ def test_insurance_multi_part_question_answers_price_idv_and_addons():
     assert 'roadside assistance' in reply.lower()
     assert 'policy schedule' in reply.lower() or 'quote' in reply.lower()
     assert 'cannot confirm' in reply.lower()
+
+
+def test_public_registration_creates_normal_user_and_session():
+    client = TestClient(app)
+    email = 'new-public-user@agentra.test'
+
+    import sqlite3
+    from pathlib import Path
+    db_path = Path(__file__).resolve().parents[1] / 'data' / 'creditnirvana.db'
+    with sqlite3.connect(db_path) as conn:
+        conn.execute('DELETE FROM users WHERE email = ?', (email,))
+
+    response = client.post('/api/register', json={
+        'name': 'Public User',
+        'email': email,
+        'password': 'CorrectPass!123',
+        'confirm_password': 'CorrectPass!123',
+    })
+    assert response.status_code == 200
+    assert response.json()['user']['role'] == 'user'
+    assert response.json()['user']['email'] == email
+    assert client.get('/api/me').status_code == 200
+
+    duplicate = TestClient(app).post('/api/register', json={
+        'name': 'Public User',
+        'email': email,
+        'password': 'CorrectPass!123',
+        'confirm_password': 'CorrectPass!123',
+    })
+    assert duplicate.status_code == 409
 
 
 def test_login_requires_valid_credentials_and_returns_current_user():

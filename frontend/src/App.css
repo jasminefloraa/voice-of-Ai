@@ -883,6 +883,27 @@ h3 {
   padding: 0;
 }
 
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+}
+
+.auth-mode-switch button {
+  border: 0;
+  color: var(--text-soft);
+  background: transparent;
+}
+
+.auth-mode-switch button.active {
+  color: var(--text);
+  background: rgba(146,112,255,0.16);
+}
+
 .login-supporting {
   margin-top: 8px;
   color: var(--text-soft);

@@ -23,6 +23,13 @@ type LoginFormValues = {
   password: string
 }
 
+type RegistrationFormValues = {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
 const navItems: Array<{ key: Section; label: string }> = [
   { key: 'overview', label: 'Overview' },
   { key: 'studio', label: 'Voice Studio' },
@@ -102,6 +109,7 @@ function App() {
   })
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [user, setUser] = useState<User | null>(null)
   const [accountLoading, setAccountLoading] = useState(false)
   const [accountError, setAccountError] = useState('')
@@ -109,6 +117,10 @@ function App() {
   const [loginErrors, setLoginErrors] = useState<Partial<Record<keyof LoginFormValues, string>>>({})
   const [loginSubmitting, setLoginSubmitting] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [registrationForm, setRegistrationForm] = useState<RegistrationFormValues>({ name: '', email: '', password: '', confirmPassword: '' })
+  const [registrationErrors, setRegistrationErrors] = useState<Partial<Record<keyof RegistrationFormValues, string>>>({})
+  const [registrationSubmitting, setRegistrationSubmitting] = useState(false)
+  const [registrationError, setRegistrationError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -201,6 +213,47 @@ function App() {
       setAuthStatus('unauthenticated')
     } finally {
       setLoginSubmitting(false)
+    }
+  }
+
+  const handleRegistrationSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const nextErrors: Partial<Record<keyof RegistrationFormValues, string>> = {}
+    if (registrationForm.name.trim().length < 2) nextErrors.name = 'Name must be at least 2 characters.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationForm.email.trim())) nextErrors.email = 'Enter a valid email address.'
+    if (registrationForm.password.length < 8) nextErrors.password = 'Password must be at least 8 characters.'
+    if (registrationForm.confirmPassword !== registrationForm.password) nextErrors.confirmPassword = 'Passwords do not match.'
+    setRegistrationErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setRegistrationSubmitting(true)
+    setRegistrationError('')
+    try {
+      const response = await fetch(`${API_BASE}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: registrationForm.name.trim(),
+          email: registrationForm.email.trim().toLowerCase(),
+          password: registrationForm.password,
+          confirm_password: registrationForm.confirmPassword,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Unable to create your account.')
+
+      setUser(data.user)
+      setAuthStatus('authenticated')
+      setRegistrationForm({ name: '', email: '', password: '', confirmPassword: '' })
+      setRegistrationErrors({})
+      setSection('overview')
+      void loadData()
+    } catch (error) {
+      setRegistrationError(error instanceof Error ? error.message : 'Unable to create your account. Please try again.')
+    } finally {
+      setRegistrationSubmitting(false)
     }
   }
 
@@ -1027,68 +1080,91 @@ function App() {
   }
 
   if (authStatus === 'unauthenticated') {
+    const switchAuthMode = (mode: 'login' | 'register') => {
+      setAuthMode(mode)
+      setLoginError('')
+      setRegistrationError('')
+    }
+
     return (
       <div className="login-screen">
         <div className="login-card">
           <div className="brand-block login-brand">
             <div className="brand-mark">A</div>
-            <div>
-              <strong>Agentra AI</strong>
-            </div>
+            <div><strong>Agentra AI</strong></div>
           </div>
 
-          <h1>Welcome back</h1>
-          <p className="login-supporting">Sign in to continue to the voice studio.</p>
-
-          <form onSubmit={handleLoginSubmit} className="login-form" noValidate>
-            <label className="field-label" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoFocus
-              autoComplete="email"
-              value={loginForm.email}
-              onChange={(event) => {
-                setLoginForm((current) => ({ ...current, email: event.target.value }))
-                setLoginErrors((current) => ({ ...current, email: undefined }))
-                setLoginError('')
-              }}
-              placeholder="you@agentra.ai"
-              aria-invalid={Boolean(loginErrors.email)}
-            />
-            {loginErrors.email ? <span className="field-error">{loginErrors.email}</span> : null}
-
-            <div className="password-row">
-              <label className="field-label" htmlFor="password">
-                Password
-              </label>
-              <button type="button" className="inline-toggle" onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={loginForm.password}
-              onChange={(event) => {
-                setLoginForm((current) => ({ ...current, password: event.target.value }))
-                setLoginErrors((current) => ({ ...current, password: undefined }))
-                setLoginError('')
-              }}
-              placeholder="Enter your password"
-              aria-invalid={Boolean(loginErrors.password)}
-            />
-            {loginErrors.password ? <span className="field-error">{loginErrors.password}</span> : null}
-
-            {loginError ? <div className="login-alert">{loginError}</div> : null}
-
-            <button type="submit" className="primary login-button" disabled={loginSubmitting || !loginForm.email.trim() || loginForm.password.length < 6}>
-              {loginSubmitting ? 'Signing in...' : 'Sign in'}
+          <div className="auth-mode-switch" role="tablist" aria-label="Account access">
+            <button type="button" role="tab" aria-selected={authMode === 'login'} className={authMode === 'login' ? 'active' : ''} onClick={() => switchAuthMode('login')}>
+              Sign In
             </button>
-          </form>
+            <button type="button" role="tab" aria-selected={authMode === 'register'} className={authMode === 'register' ? 'active' : ''} onClick={() => switchAuthMode('register')}>
+              Create Account
+            </button>
+          </div>
+
+          {authMode === 'login' ? (
+            <>
+              <h1>Welcome back</h1>
+              <p className="login-supporting">Sign in to continue to the voice studio.</p>
+              <form onSubmit={handleLoginSubmit} className="login-form" noValidate>
+                <label className="field-label" htmlFor="login-email">Email</label>
+                <input id="login-email" type="email" autoFocus autoComplete="email" value={loginForm.email}
+                  onChange={(event) => { setLoginForm((current) => ({ ...current, email: event.target.value })); setLoginErrors((current) => ({ ...current, email: undefined })); setLoginError('') }}
+                  placeholder="you@agentra.ai" aria-invalid={Boolean(loginErrors.email)} />
+                {loginErrors.email ? <span className="field-error">{loginErrors.email}</span> : null}
+
+                <div className="password-row">
+                  <label className="field-label" htmlFor="login-password">Password</label>
+                  <button type="button" className="inline-toggle" onClick={() => setShowPassword((value) => !value)}>{showPassword ? 'Hide' : 'Show'}</button>
+                </div>
+                <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={loginForm.password}
+                  onChange={(event) => { setLoginForm((current) => ({ ...current, password: event.target.value })); setLoginErrors((current) => ({ ...current, password: undefined })); setLoginError('') }}
+                  placeholder="Enter your password" aria-invalid={Boolean(loginErrors.password)} />
+                {loginErrors.password ? <span className="field-error">{loginErrors.password}</span> : null}
+                {loginError ? <div className="login-alert">{loginError}</div> : null}
+
+                <button type="submit" className="primary login-button" disabled={loginSubmitting || !loginForm.email.trim() || loginForm.password.length < 6}>
+                  {loginSubmitting ? 'Signing in...' : 'Sign in'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h1>Create your account</h1>
+              <p className="login-supporting">Set up your own Agentra AI voice workspace.</p>
+              <form onSubmit={handleRegistrationSubmit} className="login-form" noValidate>
+                <label className="field-label" htmlFor="register-name">Full name</label>
+                <input id="register-name" type="text" autoFocus autoComplete="name" value={registrationForm.name}
+                  onChange={(event) => { setRegistrationForm((current) => ({ ...current, name: event.target.value })); setRegistrationErrors((current) => ({ ...current, name: undefined })); setRegistrationError('') }}
+                  placeholder="Your name" aria-invalid={Boolean(registrationErrors.name)} />
+                {registrationErrors.name ? <span className="field-error">{registrationErrors.name}</span> : null}
+
+                <label className="field-label" htmlFor="register-email">Email</label>
+                <input id="register-email" type="email" autoComplete="email" value={registrationForm.email}
+                  onChange={(event) => { setRegistrationForm((current) => ({ ...current, email: event.target.value })); setRegistrationErrors((current) => ({ ...current, email: undefined })); setRegistrationError('') }}
+                  placeholder="you@agentra.ai" aria-invalid={Boolean(registrationErrors.email)} />
+                {registrationErrors.email ? <span className="field-error">{registrationErrors.email}</span> : null}
+
+                <label className="field-label" htmlFor="register-password">Password</label>
+                <input id="register-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={registrationForm.password}
+                  onChange={(event) => { setRegistrationForm((current) => ({ ...current, password: event.target.value })); setRegistrationErrors((current) => ({ ...current, password: undefined })); setRegistrationError('') }}
+                  placeholder="At least 8 characters" aria-invalid={Boolean(registrationErrors.password)} />
+                {registrationErrors.password ? <span className="field-error">{registrationErrors.password}</span> : null}
+
+                <label className="field-label" htmlFor="register-confirm-password">Confirm password</label>
+                <input id="register-confirm-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={registrationForm.confirmPassword}
+                  onChange={(event) => { setRegistrationForm((current) => ({ ...current, confirmPassword: event.target.value })); setRegistrationErrors((current) => ({ ...current, confirmPassword: undefined })); setRegistrationError('') }}
+                  placeholder="Repeat your password" aria-invalid={Boolean(registrationErrors.confirmPassword)} />
+                {registrationErrors.confirmPassword ? <span className="field-error">{registrationErrors.confirmPassword}</span> : null}
+                {registrationError ? <div className="login-alert">{registrationError}</div> : null}
+
+                <button type="submit" className="primary login-button" disabled={registrationSubmitting || !registrationForm.name.trim() || !registrationForm.email.trim() || registrationForm.password.length < 8 || registrationForm.confirmPassword !== registrationForm.password}>
+                  {registrationSubmitting ? 'Creating account...' : 'Create Account'}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     )
