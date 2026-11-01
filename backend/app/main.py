@@ -64,6 +64,7 @@ app.add_middleware(
     "http://127.0.0.1:4173",
     "https://voice-of-ai-eight.vercel.app",
     "https://voice-of-blwkmli3p-jasmineflora2006-8208.vercel.app",
+    "https://agentra-ai-rho.vercel.app",
 ],
     allow_credentials=True,
     allow_methods=["*"],

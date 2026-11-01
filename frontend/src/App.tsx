@@ -75,7 +75,8 @@ const defaultAnalytics = {
 }
 
 const STUDIO_HINT_KEY = 'creditnirvana-studio-hint-dismissed'
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim()
+const API_BASE = (configuredApiBase || (import.meta.env.PROD ? 'https://agentra-ai-backend.onrender.com' : 'http://localhost:8001')).replace(/\/$/, '')
 
 function App() {
   const [section, setSection] = useState<Section>('overview')
